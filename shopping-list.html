@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="shopping-list.css">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -50,6 +51,7 @@
                 </div>
                 <button class="btn-add" onclick="addItem()">＋ 追加</button>
             </div>
+            <button class="btn-ocr-open" onclick="openOCR()">📷 画像から読み込む（手書きリスト・レシート）</button>
         </div>
 
         <div class="filter-tabs">
@@ -107,6 +109,57 @@
             <button class="modal-btn" onclick="cancelModal()">キャンセル</button>
             <button class="modal-btn" onclick="skipRecord()">スキップ</button>
             <button class="modal-btn primary" onclick="confirmRecord()">記録して完了</button>
+        </div>
+    </div>
+</div>
+
+<!-- OCR Modal -->
+<div class="modal-overlay" id="ocrOverlay">
+    <div class="modal ocr-modal">
+        <div class="modal-handle"></div>
+        <div class="ocr-header">
+            <h3>画像から読み込む</h3>
+            <button class="ocr-close-btn" onclick="closeOCR()">
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                    <path d="M1 1L10 10M10 1L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+        <div class="ocr-mode-tabs">
+            <button class="ocr-tab active" data-mode="list"    onclick="setOCRMode('list')">✏️ 手書きリスト</button>
+            <button class="ocr-tab"        data-mode="receipt" onclick="setOCRMode('receipt')">🧾 レシート</button>
+        </div>
+
+        <!-- 入力フェーズ -->
+        <div id="ocrPhaseInput">
+            <label class="ocr-file-label" for="ocrFile">
+                <div class="ocr-upload-icon">📷</div>
+                <div class="ocr-upload-text">タップして撮影 / 画像を選択</div>
+                <div class="ocr-upload-hint" id="ocrHint">文字は大きくはっきりと</div>
+            </label>
+            <input type="file" id="ocrFile" accept="image/*" style="display:none" onchange="handleOCRFile(this)">
+        </div>
+
+        <!-- 処理フェーズ -->
+        <div id="ocrPhaseProcess" style="display:none">
+            <img id="ocrPreview" class="ocr-preview-img" alt="preview">
+            <div class="ocr-progress-wrap">
+                <div class="ocr-prog-bar"><div class="ocr-prog-fill" id="ocrProgFill"></div></div>
+                <span class="ocr-prog-text" id="ocrProgText">準備中...</span>
+            </div>
+        </div>
+
+        <!-- 結果フェーズ -->
+        <div id="ocrPhaseResults" style="display:none">
+            <div class="ocr-results-hd">
+                <span id="ocrResultsTitle">読み取り結果</span>
+                <span class="ocr-results-count" id="ocrResultsCount"></span>
+            </div>
+            <div id="ocrResultsList" class="ocr-results-list"></div>
+            <div class="modal-buttons" style="margin-top:1rem">
+                <button class="modal-btn" onclick="resetOCR()">やり直し</button>
+                <button class="modal-btn primary" id="ocrApplyBtn" onclick="applyOCRResults()">リストに追加</button>
+            </div>
         </div>
     </div>
 </div>
