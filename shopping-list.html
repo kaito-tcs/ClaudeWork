@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>おかいものリスト</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #F5EFE3;
+            --surface: #FDFAF4;
+            --primary: #2C4A3E;
+            --accent: #C4622D;
+            --text: #1E3028;
+            --text-muted: #7A9488;
+            --border: #DDD6C8;
+            --shadow: rgba(44, 74, 62, 0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 15% 15%, rgba(91,138,74,0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 85% 85%, rgba(196,98,45,0.06) 0%, transparent 55%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+            min-height: 100vh;
+            font-family: 'Noto Sans JP', sans-serif;
+            color: var(--text);
+            padding: 2.5rem 1rem 5rem;
+        }
+
+        .container { max-width: 620px; margin: 0 auto; }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            animation: fadeDown 0.55s ease both;
+        }
+        .header-label {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 300;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+        .header h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 3.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            line-height: 1;
+            letter-spacing: -0.025em;
+        }
+        .progress-area {
+            margin-top: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+        }
+        .progress-bar {
+            width: 150px;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #5B8A4A);
+            border-radius: 2px;
+            transition: width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* ── Add form ── */
+        .add-form {
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 18px;
+            padding: 1.25rem 1.25rem 1.1rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 2px 16px var(--shadow);
+            animation: fadeUp 0.5s ease 0.1s both;
+        }
+        .form-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.32rem;
+        }
+        .input-group label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .input-group input,
+        .input-group select {
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            padding: 0.52rem 0.75rem;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.88rem;
+            color: var(--text);
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            height: 38px;
+        }
+        .input-group input:focus,
+        .input-group select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(44, 74, 62, 0.1);
+        }
+        .input-name { flex: 1; min-width: 130px; }
+        .input-qty input { width: 60px; }
+        .input-cat select { min-width: 145px; }
+
+        .btn-add {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 9px;
+            padding: 0 1.25rem;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            height: 38px;
+            align-self: flex-end;
+            transition: background 0.2s, transform 0.12s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px rgba(44, 74, 62, 0.28);
+        }
+        .btn-add:hover { background: #1E3028; box-shadow: 0 4px 14px rgba(44, 74, 62, 0.36); }
+        .btn-add:active { transform: scale(0.95); }
+
+        /* ── Filter tabs ── */
+        .filter-tabs {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.4rem;
+            animation: fadeUp 0.5s ease 0.18s both;
+        }
+        .filter-tab {
+            padding: 0.28rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1.5px solid var(--border);
+            background: var(--surface);
+            color: var(--text-muted);
+            transition: all 0.18s;
+            user-select: none;
+        }
+        .filter-tab:hover { border-color: var(--primary); color: var(--primary); }
+        .filter-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+        /* ── List ── */
+        .list-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1.4rem;
+            animation: fadeUp 0.5s ease 0.26s both;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-bottom: 0.55rem;
+            padding: 0 0.2rem;
+        }
+        .category-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .category-name {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .category-count {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            opacity: 0.65;
+        }
+
+        .items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.38rem;
+        }
+
+        /* ── Item card ── */
+        .item {
+            background: var(--surface);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 0.7rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, opacity 0.25s, background 0.25s;
+            animation: itemIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .item:hover {
+            border-color: rgba(44, 74, 62, 0.28);
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+        .item.completed {
+            opacity: 0.48;
+            background: var(--bg);
+        }
+
+        .item-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.22s, border-color 0.22s;
+        }
+        .item.completed .item-check {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .item-check svg {
+            opacity: 0;
+            transform: scale(0.4);
+            transition: opacity 0.18s, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .item.completed .item-check svg {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .item-name {
+            flex: 1;
+            font-size: 0.92rem;
+            font-weight: 500;
+            position: relative;
+            transition: color 0.22s;
+        }
+        .item-name::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 0%;
+            height: 1.5px;
+            background: var(--text-muted);
+            transition: width 0.28s ease;
+        }
+        .item.completed .item-name { color: var(--text-muted); }
+        .item.completed .item-name::after { width: 100%; }
+
+        .item-qty {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.1rem 0.38rem;
+        }
+
+        .item-delete {
+            width: 26px;
+            height: 26px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.18s, color 0.18s, background 0.18s, transform 0.12s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 7px;
+            flex-shrink: 0;
+        }
+        .item:hover .item-delete { opacity: 1; }
+        .item-delete:hover {
+            color: var(--accent);
+            background: rgba(196, 98, 45, 0.1);
+            transform: scale(1.1);
+        }
+
+        .item.removing {
+            animation: itemOut 0.22s ease forwards;
+            pointer-events: none;
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 3.5rem 1rem;
+            color: var(--text-muted);
+        }
+        .empty-icon { font-size: 2.8rem; margin-bottom: 0.8rem; opacity: 0.45; }
+        .empty-title {
+            font-family: 'Fraunces', serif;
+            font-size: 1.15rem;
+            font-weight: 300;
+            font-style: italic;
+            margin-bottom: 0.3rem;
+        }
+        .empty-sub { font-size: 0.78rem; opacity: 0.65; }
+
+        /* ── Keyframes ── */
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes itemIn {
+            from { opacity: 0; transform: scale(0.94) translateY(-6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes itemOut {
+            from { opacity: 1; transform: scale(1) translateX(0); max-height: 70px; margin-bottom: 0.38rem; }
+            to   { opacity: 0; transform: scale(0.93) translateX(18px); max-height: 0; margin: 0; padding: 0; border-width: 0; }
+        }
+
+        @media (max-width: 460px) {
+            .header h1 { font-size: 2.4rem; }
+            .input-name { flex-basis: 100%; order: -1; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-label">My Shopping List</div>
+        <h1>おかいもの<br>リスト</h1>
+        <div class="progress-area">
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <span class="progress-text" id="progressText">0 / 0 完了</span>
+        </div>
+    </div>
+
+    <!-- Add form -->
+    <div class="add-form">
+        <div class="form-row">
+            <div class="input-group input-name">
+                <label>商品名</label>
+                <input type="text" id="itemName" placeholder="例：トマト" autocomplete="off">
+            </div>
+            <div class="input-group input-qty">
+                <label>数量</label>
+                <input type="number" id="itemQty" value="1" min="1" max="99">
+            </div>
+            <div class="input-group input-cat">
+                <label>カテゴリ</label>
+                <select id="itemCat">
+                    <option value="veggie">🥦 野菜・果物</option>
+                    <option value="meat">🥩 肉・魚</option>
+                    <option value="drink">🥛 飲み物・乳製品</option>
+                    <option value="bread">🍞 パン・穀物</option>
+                    <option value="other">🛒 その他</option>
+                </select>
+            </div>
+            <button class="btn-add" onclick="addItem()">＋ 追加</button>
+        </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+        <div class="filter-tab active" data-cat="all"   onclick="setFilter('all')">すべて</div>
+        <div class="filter-tab" data-cat="veggie" onclick="setFilter('veggie')">🥦 野菜・果物</div>
+        <div class="filter-tab" data-cat="meat"   onclick="setFilter('meat')">🥩 肉・魚</div>
+        <div class="filter-tab" data-cat="drink"  onclick="setFilter('drink')">🥛 飲み物・乳製品</div>
+        <div class="filter-tab" data-cat="bread"  onclick="setFilter('bread')">🍞 パン・穀物</div>
+        <div class="filter-tab" data-cat="other"  onclick="setFilter('other')">🛒 その他</div>
+    </div>
+
+    <!-- List -->
+    <div class="list-area" id="listArea"></div>
+
+</div>
+<script>
+    const CATEGORIES = {
+        veggie: { label: '野菜・果物',   emoji: '🥦', color: '#5B8A4A' },
+        meat:   { label: '肉・魚',       emoji: '🥩', color: '#C4622D' },
+        drink:  { label: '飲み物・乳製品', emoji: '🥛', color: '#3A7BD5' },
+        bread:  { label: 'パン・穀物',   emoji: '🍞', color: '#8B6B4A' },
+        other:  { label: 'その他',       emoji: '🛒', color: '#7A6B8A' },
+    };
+
+    let items = JSON.parse(localStorage.getItem('shoppingItems') || '[]');
+    let currentFilter = 'all';
+
+    function save() {
+        localStorage.setItem('shoppingItems', JSON.stringify(items));
+    }
+
+    function setFilter(cat) {
+        currentFilter = cat;
+        document.querySelectorAll('.filter-tab').forEach(el => {
+            el.classList.toggle('active', el.dataset.cat === cat);
+        });
+        renderList();
+    }
+
+    function addItem() {
+        const nameEl = document.getElementById('itemName');
+        const name = nameEl.value.trim();
+        const qty  = Math.max(1, parseInt(document.getElementById('itemQty').value) || 1);
+        const cat  = document.getElementById('itemCat').value;
+
+        if (!name) {
+            nameEl.style.borderColor = '#C4622D';
+            nameEl.focus();
+            setTimeout(() => { nameEl.style.borderColor = ''; }, 900);
+            return;
+        }
+
+        items.push({ id: Date.now(), name, qty, cat, done: false });
+        save();
+        renderList();
+        nameEl.value = '';
+        document.getElementById('itemQty').value = '1';
+        nameEl.focus();
+    }
+
+    function toggleItem(id) {
+        const item = items.find(i => i.id === id);
+        if (item) { item.done = !item.done; save(); renderList(); }
+    }
+
+    function deleteItem(id) {
+        const el = document.getElementById('item-' + id);
+        if (!el) return;
+        el.classList.add('removing');
+        setTimeout(() => {
+            items = items.filter(i => i.id !== id);
+            save();
+            renderList();
+        }, 230);
+    }
+
+    function esc(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderList() {
+        const area = document.getElementById('listArea');
+        const filtered = currentFilter === 'all' ? items : items.filter(i => i.cat === currentFilter);
+
+        // progress
+        const total = items.length;
+        const done  = items.filter(i => i.done).length;
+        document.getElementById('progressFill').style.width = total ? (done / total * 100) + '%' : '0%';
+        document.getElementById('progressText').textContent = `${done} / ${total} 完了`;
+
+        if (filtered.length === 0) {
+            area.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">🛍️</div>
+                    <div class="empty-title">リストは空です</div>
+                    <div class="empty-sub">上のフォームから商品を追加してください</div>
+                </div>`;
+            return;
+        }
+
+        const grouped = {};
+        for (const cat of Object.keys(CATEGORIES)) {
+            const list = filtered.filter(i => i.cat === cat);
+            if (list.length) grouped[cat] = list;
+        }
+
+        area.innerHTML = Object.entries(grouped).map(([cat, list]) => {
+            const { label, emoji, color } = CATEGORIES[cat];
+            const doneCount = list.filter(i => i.done).length;
+            return `
+            <div class="category-group">
+                <div class="category-header">
+                    <div class="category-dot" style="background:${color}"></div>
+                    <span class="category-name">${emoji} ${label}</span>
+                    <span class="category-count">${doneCount}/${list.length}</span>
+                </div>
+                <div class="items-list">
+                    ${list.map(item => `
+                    <div class="item${item.done ? ' completed' : ''}" id="item-${item.id}" onclick="toggleItem(${item.id})">
+                        <div class="item-check">
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                <path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <span class="item-name">${esc(item.name)}</span>
+                        <span class="item-qty">×${item.qty}</span>
+                        <button class="item-delete" onclick="event.stopPropagation();deleteItem(${item.id})" title="削除">
+                            <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                                <path d="M1 1L10 10M10 1L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    document.getElementById('itemName').addEventListener('keydown', e => {
+        if (e.key === 'Enter') addItem();
+    });
+
+    renderList();
+</script>
+</body>
+</html>
