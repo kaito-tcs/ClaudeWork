@@ -10,6 +10,7 @@ let items = JSON.parse(localStorage.getItem('shoppingItems') || '[]');
 let purchaseHistory = JSON.parse(localStorage.getItem('purchaseHistory') || '[]');
 let currentFilter = 'all';
 let pendingCompleteId = null;
+let historyFilter = { month: '', date: '', location: '' };
 
 function save() { localStorage.setItem('shoppingItems', JSON.stringify(items)); }
 function saveHistory() { localStorage.setItem('purchaseHistory', JSON.stringify(purchaseHistory)); }
@@ -68,6 +69,9 @@ function toggleItem(id) {
         document.getElementById('modalItemName').textContent = item.name;
         document.getElementById('modalPrice').value = '';
         document.getElementById('modalLocation').value = '';
+        const t = new Date();
+        document.getElementById('modalDate').value =
+            `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
         document.getElementById('modalOverlay').classList.add('open');
         setTimeout(() => document.getElementById('modalPrice').focus(), 320);
     }
@@ -94,13 +98,15 @@ function confirmRecord() {
     if (item) {
         item.done = true;
         save();
+        const dateVal = document.getElementById('modalDate').value;
+        const date = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
         purchaseHistory.push({
             id: Date.now(),
             itemName: item.name,
             category: item.cat,
             price,
             location,
-            date: new Date().toISOString(),
+            date,
         });
         saveHistory();
         renderList();
@@ -183,9 +189,120 @@ function renderList() {
     }).join('');
 }
 
+// ── History filter helpers ──
+function getFilteredHistory() {
+    return purchaseHistory.filter(r => {
+        const d = new Date(r.date);
+        const rMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const rDate  = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (historyFilter.month    && rMonth !== historyFilter.month) return false;
+        if (historyFilter.date     && rDate  !== historyFilter.date)  return false;
+        if (historyFilter.location && !(r.location || '').toLowerCase().includes(historyFilter.location)) return false;
+        return true;
+    });
+}
+
+function applyHistoryFilter() {
+    historyFilter.month    = document.getElementById('searchMonth').value;
+    historyFilter.date     = document.getElementById('searchDate').value;
+    historyFilter.location = document.getElementById('searchLocation').value.trim().toLowerCase();
+    renderHistory();
+}
+
+function clearSearch() {
+    document.getElementById('searchMonth').value    = '';
+    document.getElementById('searchDate').value     = '';
+    document.getElementById('searchLocation').value = '';
+    historyFilter = { month: '', date: '', location: '' };
+    renderHistory();
+}
+
+// ── Export ──
+function exportCSV() {
+    const data = getFilteredHistory();
+    if (!data.length) { alert('エクスポートするデータがありません'); return; }
+
+    const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const header = ['購入日', '商品名', 'カテゴリ', '金額（円）', '購入場所'];
+    const rows   = sorted.map(r => [
+        new Date(r.date).toLocaleDateString('ja-JP'),
+        r.itemName,
+        CATEGORIES[r.category]?.label || r.category,
+        r.price ?? '',
+        r.location ?? '',
+    ]);
+
+    const csv = [header, ...rows]
+        .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        .join('\r\n');
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    const suffix = historyFilter.month || historyFilter.date?.slice(0,7) || new Date().toISOString().slice(0,7);
+    a.download = `購入履歴_${suffix}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportPDF() {
+    const data = getFilteredHistory();
+    if (!data.length) { alert('エクスポートするデータがありません'); return; }
+
+    const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let label = '全期間';
+    if (historyFilter.month)     label = historyFilter.month.replace('-', '年') + '月';
+    else if (historyFilter.date) label = new Date(historyFilter.date + 'T12:00:00').toLocaleDateString('ja-JP');
+
+    const rows = sorted.map(r => `
+        <tr>
+            <td>${new Date(r.date).toLocaleDateString('ja-JP')}</td>
+            <td>${esc(r.itemName)}</td>
+            <td>${CATEGORIES[r.category]?.emoji || ''} ${CATEGORIES[r.category]?.label || r.category}</td>
+            <td class="num">${r.price !== null ? '¥' + r.price.toLocaleString() : '—'}</td>
+            <td>${r.location ? esc(r.location) : '—'}</td>
+        </tr>`).join('');
+
+    const total = sorted.filter(r => r.price !== null).reduce((s, r) => s + r.price, 0);
+
+    const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>購入履歴 ${label}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+  body{font-family:'Noto Sans JP',sans-serif;margin:2cm;color:#1E3028;font-size:11pt}
+  h1{font-size:16pt;margin-bottom:4px;color:#2C4A3E}
+  .meta{font-size:9pt;color:#7A9488;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse}
+  th{background:#2C4A3E;color:white;padding:6px 10px;text-align:left;font-size:9pt}
+  td{padding:5px 10px;border-bottom:1px solid #DDD6C8;font-size:10pt}
+  .num{text-align:right}
+  tr:nth-child(even) td{background:#F5EFE3}
+  .total td{font-weight:700;border-top:2px solid #2C4A3E;background:#F5EFE3}
+</style></head><body>
+<h1>購入履歴 — ${label}</h1>
+<div class="meta">出力日: ${new Date().toLocaleDateString('ja-JP')} ／ ${sorted.length}件</div>
+<table>
+  <thead><tr><th>購入日</th><th>商品名</th><th>カテゴリ</th><th>金額</th><th>購入場所</th></tr></thead>
+  <tbody>
+    ${rows}
+    <tr class="total"><td colspan="3">合計</td><td class="num">¥${total.toLocaleString()}</td><td></td></tr>
+  </tbody>
+</table></body></html>`;
+
+    const win = window.open('', '_blank');
+    if (!win) { alert('ポップアップがブロックされました。ブラウザの設定を確認してください。'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+}
+
 // ── Render history ──
 function renderHistory() {
-    const area = document.getElementById('historyArea');
+    const area     = document.getElementById('historyArea');
+    const filtered = getFilteredHistory();
 
     if (purchaseHistory.length === 0) {
         area.innerHTML = `
@@ -197,8 +314,19 @@ function renderHistory() {
         return;
     }
 
+    if (filtered.length === 0) {
+        area.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-title">該当する履歴がありません</div>
+                <div class="empty-sub">検索条件を変更してください</div>
+            </div>`;
+        return;
+    }
+
+    // Group by item name, sort each group by date asc
     const grouped = {};
-    for (const record of purchaseHistory) {
+    for (const record of filtered) {
         if (!grouped[record.itemName]) grouped[record.itemName] = [];
         grouped[record.itemName].push(record);
     }
@@ -206,6 +334,7 @@ function renderHistory() {
         grouped[name].sort((a, b) => new Date(a.date) - new Date(b.date));
     }
 
+    // Sort groups by most recently purchased
     const sortedEntries = Object.entries(grouped).sort((a, b) => {
         const latestA = new Date(a[1][a[1].length - 1].date);
         const latestB = new Date(b[1][b[1].length - 1].date);
@@ -265,11 +394,11 @@ function renderChart(priceRecords, color, idx) {
     const cW = W - pad.left - pad.right;
     const cH = H - pad.top - pad.bottom;
 
-    const prices    = priceRecords.map(r => r.price);
-    const minP      = Math.min(...prices);
-    const maxP      = Math.max(...prices);
+    const prices   = priceRecords.map(r => r.price);
+    const minP     = Math.min(...prices);
+    const maxP     = Math.max(...prices);
     const samePrice = minP === maxP;
-    const gradId    = `ag${idx}`;
+    const gradId   = `ag${idx}`;
 
     const toX = i => pad.left + (priceRecords.length === 1 ? cW / 2 : (i / (priceRecords.length - 1)) * cW);
     const toY = p => samePrice
@@ -287,8 +416,7 @@ function renderChart(priceRecords, color, idx) {
         : '';
 
     const n = priceRecords.length;
-    const labelIndices = n <= 4
-        ? priceRecords.map((_, i) => i)
+    const labelIndices = n <= 4 ? priceRecords.map((_, i) => i)
         : [0, Math.floor(n / 3), Math.floor(2 * n / 3), n - 1];
     const uniqueIdx = [...new Set(labelIndices)];
 
@@ -303,7 +431,9 @@ function renderChart(priceRecords, color, idx) {
         <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top+cH}" stroke="#DDD6C8" stroke-width="1"/>
         <line x1="${pad.left}" y1="${pad.top+cH}" x2="${W-pad.right}" y2="${pad.top+cH}" stroke="#DDD6C8" stroke-width="1"/>
         ${!samePrice ? `<line x1="${pad.left}" y1="${pad.top}" x2="${W-pad.right}" y2="${pad.top}" stroke="#DDD6C8" stroke-width="0.5" stroke-dasharray="3,3"/>` : ''}
-        ${!samePrice ? `<text x="${pad.left-5}" y="${pad.top+4}" text-anchor="end" class="chart-label">¥${maxP}</text>` : ''}
+        ${!samePrice
+            ? `<text x="${pad.left-5}" y="${pad.top+4}"    text-anchor="end" class="chart-label">¥${maxP}</text>`
+            : ''}
         <text x="${pad.left-5}" y="${(pad.top+cH).toFixed(1)}" text-anchor="end" class="chart-label">¥${minP}</text>
         ${areaPath ? `<path d="${areaPath}" fill="url(#${gradId})"/>` : ''}
         ${pts.length > 1 ? `<path d="${linePath}" stroke="${color}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
