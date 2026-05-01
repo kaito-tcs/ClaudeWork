@@ -66,6 +66,18 @@
 
     <!-- History view -->
     <div id="viewHistory" style="display:none">
+        <div class="history-toolbar">
+            <div class="history-search">
+                <input type="month" id="searchMonth" class="search-input" title="年月で絞り込み" oninput="applyHistoryFilter()">
+                <input type="date"  id="searchDate"  class="search-input" title="日付で絞り込み"  oninput="applyHistoryFilter()">
+                <input type="text"  id="searchLocation" class="search-input" placeholder="📍 購入場所で検索" oninput="applyHistoryFilter()">
+                <button class="btn-clear-search" onclick="clearSearch()">クリア</button>
+            </div>
+            <div class="history-export">
+                <button class="btn-export" onclick="exportCSV()">⬇ CSV</button>
+                <button class="btn-export" onclick="exportPDF()">🖨 PDF</button>
+            </div>
+        </div>
         <div id="historyArea"></div>
     </div>
 
@@ -85,6 +97,10 @@
             <div class="modal-field">
                 <label>購入場所</label>
                 <input type="text" id="modalLocation" placeholder="例：スーパー田中">
+            </div>
+            <div class="modal-field">
+                <label>購入日</label>
+                <input type="date" id="modalDate">
             </div>
         </div>
         <div class="modal-buttons">
