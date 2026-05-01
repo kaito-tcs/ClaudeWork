@@ -252,7 +252,7 @@ function exportPDF() {
 
     const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
     let label = '全期間';
-    if (historyFilter.month)     label = historyFilter.month.replace('-', '年') + '月';
+    if (historyFilter.month)    label = historyFilter.month.replace('-', '年') + '月';
     else if (historyFilter.date) label = new Date(historyFilter.date + 'T12:00:00').toLocaleDateString('ja-JP');
 
     const rows = sorted.map(r => `
@@ -445,6 +445,239 @@ function renderChart(priceRecords, color, idx) {
     </svg>`;
 }
 
+// ── OCR ──
+let ocrMode = 'list';
+let ocrItems = [];
+
+function openOCR() {
+    document.getElementById('ocrOverlay').classList.add('open');
+    showOCRPhase('input');
+}
+
+function closeOCR() {
+    document.getElementById('ocrOverlay').classList.remove('open');
+}
+
+function resetOCR() {
+    document.getElementById('ocrFile').value = '';
+    ocrItems = [];
+    showOCRPhase('input');
+}
+
+function setOCRMode(mode) {
+    ocrMode = mode;
+    document.querySelectorAll('.ocr-tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.mode === mode)
+    );
+    document.getElementById('ocrHint').textContent =
+        mode === 'list' ? '文字は大きくはっきりと' : 'レシート全体が写るように';
+}
+
+function showOCRPhase(phase) {
+    document.getElementById('ocrPhaseInput').style.display   = phase === 'input'   ? '' : 'none';
+    document.getElementById('ocrPhaseProcess').style.display = phase === 'process' ? '' : 'none';
+    document.getElementById('ocrPhaseResults').style.display = phase === 'results' ? '' : 'none';
+}
+
+async function handleOCRFile(input) {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('ocrPreview').src = e.target.result; };
+    reader.readAsDataURL(file);
+
+    showOCRPhase('process');
+    document.getElementById('ocrProgFill').style.width = '0%';
+    document.getElementById('ocrProgText').textContent = '準備中...';
+
+    if (typeof Tesseract === 'undefined') {
+        document.getElementById('ocrProgText').textContent = 'エラー：ライブラリ未ロード。ページを再読込してください。';
+        return;
+    }
+
+    try {
+        const worker = await Tesseract.createWorker('jpn', 1, {
+            logger: ({ status, progress }) => {
+                const pct = Math.round((progress || 0) * 100);
+                const label = {
+                    'loading tesseract core':        'エンジン読み込み中...',
+                    'loading language traineddata':  '日本語データ読み込み中（初回のみ時間がかかります）',
+                    'initializing api':              '初期化中...',
+                    'recognizing text':              `読み取り中... ${pct}%`,
+                }[status] || status;
+                document.getElementById('ocrProgText').textContent = label;
+                if (status === 'recognizing text') {
+                    document.getElementById('ocrProgFill').style.width = pct + '%';
+                }
+            }
+        });
+        const { data: { text } } = await worker.recognize(file);
+        await worker.terminate();
+        document.getElementById('ocrProgFill').style.width = '100%';
+        if (ocrMode === 'list') parseAndShowList(text);
+        else parseAndShowReceipt(text);
+    } catch (err) {
+        document.getElementById('ocrProgText').textContent = 'エラー：' + err.message;
+    }
+}
+
+function parseAndShowList(text) {
+    const lines = text.split('\n')
+        .map(l => l.replace(/[|｜\[\]「」【】◯○●]/g, '').trim())
+        .filter(l => l.length >= 1 && l.length <= 25);
+
+    ocrItems = lines.map(line => {
+        let name = line, qty = 1;
+        const m = line.match(/^(.+?)\s*[×xX×]\s*(\d+)$/)
+                || line.match(/^(.+?)\s+(\d+)\s*[個本袋枚パック缶箱]?$/)
+                || line.match(/^(.+?)(\d+)\s*[個本袋枚パック缶箱]$/);
+        if (m) { name = m[1].trim(); qty = parseInt(m[2]) || 1; }
+        return { name, qty, cat: 'other', selected: true };
+    }).filter(i => i.name.length > 0);
+
+    document.getElementById('ocrResultsTitle').textContent = '読み取り結果';
+    document.getElementById('ocrResultsCount').textContent = ocrItems.length ? `${ocrItems.length}件` : '';
+    document.getElementById('ocrApplyBtn').textContent = 'リストに追加';
+
+    const list = document.getElementById('ocrResultsList');
+    if (!ocrItems.length) {
+        list.innerHTML = '<div class="ocr-empty">テキストを認識できませんでした<br><small>文字を大きくはっきり書いた画像で再試行してください</small></div>';
+    } else {
+        list.innerHTML = ocrItems.map((item, i) => `
+            <div class="ocr-item">
+                <input type="checkbox" class="ocr-cb" ${item.selected ? 'checked' : ''}
+                       onchange="ocrItems[${i}].selected = this.checked">
+                <input class="ocr-name" type="text" value="${esc(item.name)}"
+                       oninput="ocrItems[${i}].name = this.value">
+                <input class="ocr-qty" type="number" value="${item.qty}" min="1" max="99"
+                       oninput="ocrItems[${i}].qty = parseInt(this.value)||1">
+                <select class="ocr-cat" onchange="ocrItems[${i}].cat = this.value">
+                    ${Object.entries(CATEGORIES).map(([k, v]) =>
+                        `<option value="${k}" ${item.cat === k ? 'selected' : ''}>${v.emoji}</option>`
+                    ).join('')}
+                </select>
+            </div>`).join('');
+    }
+    showOCRPhase('results');
+}
+
+function parseAndShowReceipt(text) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    let storeName = '';
+    for (const l of lines.slice(0, 5)) {
+        if (l.length > 1 && l.length < 20 && !l.match(/^\d/) && !l.match(/[¥￥]/)) {
+            storeName = l; break;
+        }
+    }
+
+    let purchaseDate = new Date().toISOString().slice(0, 10);
+    const dm = text.match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+    if (dm) purchaseDate = `${dm[1]}-${dm[2].padStart(2,'0')}-${dm[3].padStart(2,'0')}`;
+
+    ocrItems = [];
+    for (const line of lines) {
+        if (line.match(/合計|小計|税|釣|割引|ポイント|レジ|担当|レシート|電話|〒|会員|No\.|番号/)) continue;
+        const pm = line.match(/^(.+?)\s{2,}[¥￥]?(\d{2,5})\s*$/)
+                || line.match(/^(.+?)\s+[¥￥](\d{2,5})\s*$/)
+                || line.match(/^(.+?)\s+(\d{2,5})円?\s*$/);
+        if (!pm) continue;
+        const name = pm[1].replace(/[*＊]/g, '').trim();
+        const price = parseInt(pm[2]);
+        if (!name || name.length > 25 || price <= 0 || price >= 100000) continue;
+        const match = findListMatch(name);
+        ocrItems.push({ name, price, storeName, purchaseDate,
+            selected: !!match, listItemId: match?.id || null, listItemName: match?.name || null });
+    }
+
+    const total   = ocrItems.reduce((s, r) => s + r.price, 0);
+    const matched = ocrItems.filter(i => i.listItemId).length;
+    document.getElementById('ocrResultsTitle').textContent = 'レシート読み取り結果';
+    document.getElementById('ocrResultsCount').textContent = `${matched}/${ocrItems.length}件一致`;
+    document.getElementById('ocrApplyBtn').textContent = '完了として記録';
+
+    let html = '';
+    if (storeName || purchaseDate) {
+        html += `<div class="ocr-receipt-meta">
+            ${storeName ? `<span>🏪 ${esc(storeName)}</span>` : ''}
+            <span>📅 ${purchaseDate}</span>
+            ${total ? `<span>計 ¥${total.toLocaleString()}</span>` : ''}
+        </div>`;
+    }
+
+    if (!ocrItems.length) {
+        html += '<div class="ocr-empty">商品を認識できませんでした<br><small>レシート全体が明るく写っているか確認してください</small></div>';
+    } else {
+        html += ocrItems.map((item, i) => item.listItemId
+            ? `<div class="ocr-item matched">
+                <input type="checkbox" class="ocr-cb" checked
+                       onchange="ocrItems[${i}].selected = this.checked">
+                <div class="ocr-item-body">
+                    <span class="ocr-name-text">${esc(item.listItemName)}</span>
+                    <span class="ocr-match-tag">OCR: ${esc(item.name)}</span>
+                </div>
+                <span class="ocr-price">¥${item.price.toLocaleString()}</span>
+              </div>`
+            : `<div class="ocr-item unmatched">
+                <span class="ocr-dash">—</span>
+                <div class="ocr-item-body">
+                    <span class="ocr-name-text dim">${esc(item.name)}</span>
+                    <span class="ocr-no-match-tag">リスト未登録</span>
+                </div>
+                <span class="ocr-price dim">¥${item.price.toLocaleString()}</span>
+              </div>`
+        ).join('');
+    }
+    document.getElementById('ocrResultsList').innerHTML = html;
+    showOCRPhase('results');
+}
+
+function findListMatch(ocrName) {
+    const norm = s => s.replace(/\s+/g, '')
+        .replace(/[ａ-ｚＡ-Ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+        .toLowerCase();
+    const t = norm(ocrName);
+    return items.find(item => {
+        if (item.done) return false;
+        const a = norm(item.name);
+        return t.includes(a) || a.includes(t);
+    }) || null;
+}
+
+function applyOCRResults() {
+    const sel = ocrItems.filter(i => i.selected);
+    if (!sel.length) { alert('項目を選択してください'); return; }
+
+    if (ocrMode === 'list') {
+        sel.forEach(item => {
+            if (!item.name.trim()) return;
+            items.push({ id: Date.now() + Math.random(), name: item.name.trim(), qty: item.qty, cat: item.cat, done: false });
+        });
+        save();
+        renderList();
+    } else {
+        sel.forEach(item => {
+            if (!item.listItemId) return;
+            const li = items.find(i => i.id === item.listItemId);
+            if (!li) return;
+            li.done = true;
+            purchaseHistory.push({
+                id: Date.now() + Math.random(),
+                itemName: li.name,
+                category: li.cat,
+                price: item.price,
+                location: item.storeName || null,
+                date: new Date(item.purchaseDate + 'T12:00:00').toISOString(),
+            });
+        });
+        save();
+        saveHistory();
+        renderList();
+    }
+    closeOCR();
+}
+
 // ── Event listeners ──
 document.getElementById('modalOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('modalOverlay')) cancelModal();
@@ -453,7 +686,12 @@ document.getElementById('modalLocation').addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmRecord();
 });
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('modalOverlay').classList.contains('open')) cancelModal();
+    if (e.key !== 'Escape') return;
+    if (document.getElementById('modalOverlay').classList.contains('open')) cancelModal();
+    if (document.getElementById('ocrOverlay').classList.contains('open'))   closeOCR();
+});
+document.getElementById('ocrOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('ocrOverlay')) closeOCR();
 });
 document.getElementById('itemName').addEventListener('keydown', e => {
     if (e.key === 'Enter') addItem();
