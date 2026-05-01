@@ -628,6 +628,189 @@ input[type="text"].search-input  { flex: 1; min-width: 120px; }
     box-shadow: 0 2px 8px rgba(44, 74, 62, 0.28);
 }
 
+/* ── OCR open button ── */
+.btn-ocr-open {
+    width: 100%;
+    margin-top: 0.65rem;
+    padding: 0.44rem;
+    border: 1.5px dashed var(--border);
+    border-radius: 9px;
+    background: none;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.79rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.18s;
+}
+.btn-ocr-open:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(44, 74, 62, 0.04);
+}
+
+/* ── OCR modal ── */
+.ocr-modal {
+    max-height: 88vh;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+}
+.ocr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.9rem;
+}
+.ocr-header h3 { margin-bottom: 0; }
+.ocr-close-btn {
+    width: 28px; height: 28px;
+    border: none; background: none;
+    cursor: pointer; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    transition: all 0.18s;
+    flex-shrink: 0;
+}
+.ocr-close-btn:hover { color: var(--accent); background: rgba(196, 98, 45, 0.1); }
+
+/* OCR mode tabs */
+.ocr-mode-tabs {
+    display: flex;
+    gap: 0.3rem;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0.25rem;
+    margin-bottom: 1rem;
+}
+.ocr-tab {
+    flex: 1;
+    padding: 0.4rem;
+    border: none; background: none;
+    border-radius: 7px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 0.8rem; font-weight: 700;
+    cursor: pointer; color: var(--text-muted);
+    transition: all 0.18s;
+}
+.ocr-tab.active { background: var(--primary); color: white; }
+
+/* OCR file input area */
+.ocr-file-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.ocr-file-label:hover { border-color: var(--primary); background: rgba(44, 74, 62, 0.03); }
+.ocr-upload-icon { font-size: 2.2rem; }
+.ocr-upload-text { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+.ocr-upload-hint { font-size: 0.72rem; color: var(--text-muted); }
+
+/* OCR processing */
+.ocr-preview-img {
+    width: 100%; max-height: 140px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: var(--bg);
+    margin-bottom: 0.85rem;
+    display: block;
+}
+.ocr-progress-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.ocr-prog-bar {
+    height: 4px; background: var(--border);
+    border-radius: 2px; overflow: hidden;
+}
+.ocr-prog-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #5B8A4A);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+.ocr-prog-text { font-size: 0.78rem; color: var(--text-muted); text-align: center; }
+
+/* OCR results header */
+.ocr-results-hd {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.6rem;
+    font-size: 0.72rem; font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ocr-results-count {
+    background: var(--primary); color: white;
+    border-radius: 10px; padding: 0.1rem 0.45rem;
+    font-size: 0.65rem;
+}
+.ocr-results-list { max-height: 34vh; overflow-y: auto; }
+.ocr-receipt-meta {
+    display: flex; gap: 0.8rem; flex-wrap: wrap;
+    padding: 0.45rem 0.6rem;
+    background: var(--bg); border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-size: 0.76rem; color: var(--text-muted);
+}
+.ocr-empty {
+    text-align: center; padding: 1.5rem;
+    color: var(--text-muted); font-size: 0.85rem; line-height: 1.6;
+}
+
+/* OCR list-mode items */
+.ocr-item {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(221, 214, 200, 0.5);
+}
+.ocr-item:last-child { border-bottom: none; }
+.ocr-cb { width: 16px; height: 16px; accent-color: var(--primary); flex-shrink: 0; cursor: pointer; }
+.ocr-name {
+    flex: 1; min-width: 0;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    padding: 0.3rem 0.5rem;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 0.85rem;
+    color: var(--text); background: white; outline: none;
+}
+.ocr-name:focus { border-color: var(--primary); }
+.ocr-qty {
+    width: 46px; flex-shrink: 0;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    padding: 0.3rem;
+    font-family: 'Noto Sans JP', sans-serif; font-size: 0.85rem;
+    color: var(--text); background: white; outline: none; text-align: center;
+}
+.ocr-qty:focus { border-color: var(--primary); }
+.ocr-cat {
+    flex-shrink: 0;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    padding: 0.3rem 0.25rem;
+    font-size: 0.88rem; color: var(--text);
+    background: white; outline: none; cursor: pointer;
+}
+.ocr-cat:focus { border-color: var(--primary); }
+
+/* OCR receipt-mode items */
+.ocr-item.unmatched { opacity: 0.5; }
+.ocr-dash { width: 16px; text-align: center; color: var(--text-muted); flex-shrink: 0; }
+.ocr-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.08rem; }
+.ocr-name-text { font-size: 0.88rem; font-weight: 500; color: var(--text); }
+.ocr-name-text.dim { color: var(--text-muted); font-weight: 400; }
+.ocr-match-tag {
+    font-size: 0.67rem; color: var(--primary);
+    background: rgba(44, 74, 62, 0.08);
+    border-radius: 4px; padding: 0.05rem 0.32rem;
+    display: inline-block;
+}
+.ocr-no-match-tag { font-size: 0.67rem; color: var(--text-muted); }
+.ocr-price { font-size: 0.85rem; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+.ocr-price.dim { font-weight: 400; color: var(--text-muted); }
+
 @media (max-width: 460px) {
     .header h1 { font-size: 2.4rem; }
     .input-name { flex-basis: 100%; order: -1; }
