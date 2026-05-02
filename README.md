@@ -108,4 +108,6 @@ claude
 
 ## ライセンス
 
-MIT.
+[MIT License](./LICENSE)。クレジット表記を残していただければ、自由に改変・再配布・商用利用が可能です。
+
+階層構造のコンセプトは [Donchitos/Claude-Code-Game-Studios](https://github.com/Donchitos/Claude-Code-Game-Studios)（MIT License）からインスパイアされています。
