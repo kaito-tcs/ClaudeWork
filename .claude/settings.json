@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "studio": {
+    "name": "Web Engineering Studio",
+    "stack": {
+      "backend": ["python>=3.12", "django>=5.0", "fastapi", "pydantic>=2", "sqlalchemy>=2", "alembic", "celery", "redis"],
+      "frontend": ["typescript>=5.4", "react>=18", "next>=15", "tailwindcss>=4", "vite", "vitest", "playwright"],
+      "data": ["postgresql>=16", "redis"],
+      "infra": ["docker", "github-actions", "terraform"]
+    }
+  },
+  "models": {
+    "directors": "claude-opus-4-6",
+    "leads": "claude-sonnet-4-6",
+    "specialists": "claude-sonnet-4-6",
+    "narrow_tasks": "claude-haiku-4-5"
+  },
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(git:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(rg:*)",
+      "Bash(pytest:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(ruff:*)",
+      "Bash(black:*)",
+      "Bash(mypy:*)",
+      "Bash(eslint:*)",
+      "Bash(tsc:*)",
+      "Bash(prettier:*)",
+      "Bash(docker:*)",
+      "Bash(terraform plan:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /:*)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)",
+      "Bash(kubectl delete:*)"
+    ],
+    "ask": [
+      "Write",
+      "Edit",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(npm publish:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install:*)",
+      "Bash(docker push:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-write-approval.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pre-bash-guard.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-lint.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-end-gap-detect.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-context.sh" }
+        ]
+      }
+    ]
+  },
+  "qualityGates": {
+    "preCommit": {
+      "python": ["ruff check", "ruff format --check", "mypy --strict"],
+      "javascript": ["eslint", "prettier --check", "tsc --noEmit"]
+    },
+    "prePush": {
+      "secretScan": ["gitleaks detect --no-banner"],
+      "tests": ["pytest -x --cov", "vitest run --coverage"]
+    },
+    "sessionEnd": {
+      "gapDetection": [
+        "new-endpoint-without-test",
+        "new-model-without-migration",
+        "new-component-without-story",
+        "new-route-without-e2e",
+        "todo-comments-introduced",
+        "console-log-introduced"
+      ]
+    }
+  },
+  "collaborationContract": {
+    "phases": ["Question", "Options", "Decision", "Draft", "Approval"],
+    "enforce": true,
+    "skipForReadOnlyTools": true
+  }
+}
